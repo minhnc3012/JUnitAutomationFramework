@@ -2,25 +2,22 @@ package core.test_execution;
 
 import core.base_action.Action;
 import core.base_action.BrowserType;
-import core.base_action.SoftAssertExt;
 import core.extent_report.TestReportManager;
 import core.testdata_manager.TestCase;
 import core.testdata_manager.TestDataManager;
-import core.testdata_manager.TestStep;
 import core.testdata_manager.TestVariableManager;
-import core.utilities.*;
+import core.utilities.Config;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.opentest4j.TestAbortedException;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -32,13 +29,12 @@ public abstract class BaseTest {
     protected TestDataManager testDataManager;
     protected Action actions;
     private String userKeywordPackage;
-    protected LinkedHashMap<String, Object> actionClasses;
+    private TestCaseExecutor executor;
     protected TestVariableManager testVars;
 
     public BaseTest() {
         actions = new Action();
         testDataManager = new TestDataManager();
-        actionClasses = new LinkedHashMap<>();
         testVars = new TestVariableManager();
         testDataPath = "";
     }
@@ -51,6 +47,7 @@ public abstract class BaseTest {
 
     @BeforeAll
     protected void beforeAll() {
+        executor = new TestCaseExecutor(actions, testVars, getUserKeywordPackage());
         TestReportManager.getInstance().initializeReport(getSuiteName());
         testVars.getConfigVars().putAll(Config.getHashMapProperties(getConfigFile()));
         if (actions.getWebAction() != null) {
@@ -102,7 +99,7 @@ public abstract class BaseTest {
 
         try {
             if (curTestCase.isActive()) {
-                executeSteps();
+                executor.executeSteps(curTestCase);
                 actions.getSoftAssert().assertAll();
             } else {
                 TestReportManager.getInstance().getTestReport().testSkip(curTestCase.getNote());
@@ -113,65 +110,6 @@ public abstract class BaseTest {
             throw e;
         } finally {
             TestReportManager.getInstance().saveDurationTime("[" + curTestCase.getId() + "] " + curTestCase.getName());
-        }
-    }
-
-    private void executeSteps() {
-        String stepInfo = "";
-        for (TestStep step : curTestCase.get_testSteps()) {
-            step.setName((String) StringHandler.replaceValueByMapData(step.getName(), "@var->", "@", testVars.getTestVars()));
-            stepInfo = step.getName() + "</br><u>Action Class:</u> " + step.getClassExecution() + "</br><u>Action:</u> " + step.getMethod();
-            TestReportManager.getInstance().setStepInfo(stepInfo);
-            step.setTestParams(HashMapHandler.replaceValueByMapData(step.getTestParams(), "@var->", "@", testVars.getTestVars()));
-
-            if (step.getClassExecution() != null) {
-                try {
-                    Object actionClass = actionClasses.get(step.getClassExecution());
-                    if (actionClass == null) {
-                        Class<?> clazz = null;
-                        try {
-                            // find keyword in core package first
-                            clazz = Class.forName("core.keywords." + step.getClassExecution());
-                        } catch (ClassNotFoundException e) {
-                            // then find keyword in the defined user package
-                            clazz = Class.forName(getUserKeywordPackage() + "." + step.getClassExecution());
-                        }
-
-                        Constructor<?> cons = clazz.getConstructor(Action.class);
-                        actionClass = cons.newInstance(actions);
-                        actionClasses.put(step.getClassExecution(), actionClass);
-                    }
-
-                    Method setSAAction = actionClass.getClass().getMethod("setSoftAssert", actions.getSoftAssert().getClass());
-                    setSAAction.invoke(actionClass, actions.getSoftAssert());
-
-                    Method setTestVars = actionClass.getClass().getMethod("setTestVars", testVars.getTestVars().getClass());
-                    setTestVars.invoke(actionClass, testVars.getTestVars());
-
-                    Class<?>[] methodClasses = null;
-                    for (Method m : actionClass.getClass().getMethods()) {
-                        if (m.getName().equals(step.getMethod()) && m.getParameterCount() == step.getTestParams().size()) {
-                            methodClasses = new Class<?>[m.getParameterCount()];
-                            for (int i = 0; i < m.getParameterTypes().length; i++) {
-                                methodClasses[i] = m.getParameterTypes()[i];
-                            }
-                        }
-                    }
-
-                    Method action = actionClass.getClass().getMethod(step.getMethod(), methodClasses);
-                    action.invoke(actionClass, step.getTestParams().values().toArray());
-
-                    Method getSAAction = actionClass.getClass().getMethod("getSoftAssert");
-                    actions.setSoftAssert((SoftAssertExt) getSAAction.invoke(actionClass));
-                } catch (InvocationTargetException e) {
-                    if (e.getTargetException() instanceof TestAbortedException) {
-                        throw (TestAbortedException) e.getTargetException();
-                    } else
-                        actions.getSoftAssert().assertTrue(false, e.getTargetException().getMessage());
-                } catch (Exception e) {
-                    actions.getSoftAssert().assertTrue(false, e.toString());
-                }
-            }
         }
     }
 
@@ -212,7 +150,7 @@ public abstract class BaseTest {
     protected void afterTestClass() {
         testDataManager.clearTestSuiteMap();
         testVars.clear();
-        actionClasses.clear();
+        executor.clear();
         if (actions.getWebAction() != null && actions.getWebAction().getBrowser() != null) {
             actions.getWebAction().stopAllBrowsers();
         }
