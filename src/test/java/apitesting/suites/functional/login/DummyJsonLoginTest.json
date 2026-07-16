@@ -1,0 +1,98 @@
+{
+  "suiteName": "DummyJSON Login API",
+  "suiteDescription": "REST login test cases against dummyjson.com/auth/login, exercising core.keywords.RestAPIAction end-to-end",
+  "testCases": [
+    {
+      "testId": "API-LO1",
+      "testName": "Valid login credentials",
+      "testDescription": "Login with a valid dummyjson.com test account",
+      "testObjectives": "200 OK with the expected user profile fields",
+      "note": "",
+      "testSteps": [
+        {
+          "name": "POST /auth/login with valid credentials",
+          "class": "RestAPIAction",
+          "method": "POST",
+          "parameters": {
+            "request": {
+              "url": "https://dummyjson.com/auth/login",
+              "contentType": "application/json",
+              "body": {
+                "username": "emilys",
+                "password": "emilyspass"
+              }
+            },
+            "response": {
+              "statusCode": 200,
+              "body": {
+                "username": { "equalTo": "emilys" },
+                "firstName": { "equalTo": "Emily" },
+                "email": { "equalTo": "emily.johnson@x.dummyjson.com" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "testId": "API-LO2",
+      "testName": "Invalid password",
+      "testDescription": "Login with a valid username but the wrong password",
+      "testObjectives": "400 with 'Invalid credentials'",
+      "note": "",
+      "testSteps": [
+        {
+          "name": "POST /auth/login with wrong password",
+          "class": "RestAPIAction",
+          "method": "POST",
+          "parameters": {
+            "request": {
+              "url": "https://dummyjson.com/auth/login",
+              "contentType": "application/json",
+              "body": {
+                "username": "emilys",
+                "password": "wrongpass"
+              }
+            },
+            "response": {
+              "statusCode": 400,
+              "body": {
+                "message": { "equalTo": "Invalid credentials" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "testId": "API-LO3",
+      "testName": "Nonexistent username",
+      "testDescription": "Login with a username that does not exist",
+      "testObjectives": "400 with 'Invalid credentials'",
+      "note": "",
+      "testSteps": [
+        {
+          "name": "POST /auth/login with unknown username",
+          "class": "RestAPIAction",
+          "method": "POST",
+          "parameters": {
+            "request": {
+              "url": "https://dummyjson.com/auth/login",
+              "contentType": "application/json",
+              "body": {
+                "username": "no_such_user",
+                "password": "whatever"
+              }
+            },
+            "response": {
+              "statusCode": 400,
+              "body": {
+                "message": { "equalTo": "Invalid credentials" }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
