@@ -66,7 +66,11 @@ public class DynamicFeatureRunner {
         if (driverTimeOut != null && !driverTimeOut.isEmpty()) {
             actions.getWebAction().setTimeoutDefault(Integer.parseInt(driverTimeOut));
         }
-        actions.getWebAction().startBrowser();
+        // No eager startBrowser() here: unlike BaseTest subclasses (always UI-only), this runner
+        // is generic and executes both UI and pure-REST JSON suites through the same class.
+        // WebAction.getBrowser() lazily launches the browser the first time a page-object is
+        // actually constructed (see BaseWebUIMap.initElementMap()), so a suite whose steps only
+        // call RestAPIAction never spawns one.
 
         TestCaseExecutor executor = new TestCaseExecutor(actions, testVars, keywordPackage);
         TestDataManager testDataManager = new TestDataManager();
@@ -122,7 +126,7 @@ public class DynamicFeatureRunner {
 
     @AfterAll
     void tearDown() {
-        if (actions != null && actions.getWebAction() != null && actions.getWebAction().getBrowser() != null) {
+        if (actions != null && actions.getWebAction() != null && actions.getWebAction().isBrowserStarted()) {
             actions.getWebAction().stopAllBrowsers();
         }
         TestReportManager.getInstance().getTestReport().flush();

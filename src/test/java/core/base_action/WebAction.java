@@ -39,8 +39,20 @@ public class WebAction {
     }
 
     //region set/get method
+    // Lazy-starts the browser on first real use (called from BaseWebUIMap.initElementMap() when
+    // a page-object is constructed, i.e. exactly when a UI keyword is about to interact with the
+    // page). A pure-REST JSON suite never constructs a page-object, so this never fires and no
+    // browser process is ever spawned for it. Callers that only want to know whether a browser
+    // already exists - without triggering one - must use isBrowserStarted() instead.
     public WebDriver getBrowser() {
+        if (browser == null) {
+            startBrowser();
+        }
         return browser;
+    }
+
+    public boolean isBrowserStarted() {
+        return browser != null;
     }
 
     public void setBrowser(WebDriver browser){

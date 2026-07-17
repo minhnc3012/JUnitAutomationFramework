@@ -28,7 +28,9 @@ public class Action {
     }
 
     public void initSoftAssert() {
-        if(webAction != null && webAction.getBrowser() !=null) {
+        // isBrowserStarted() is a pure check - unlike getBrowser(), it never lazily launches a
+        // browser just to decide whether screenshot capture is available.
+        if(webAction != null && webAction.isBrowserStarted()) {
             setSoftAssert(new SoftAssertExt((TakesScreenshot) webAction.getBrowser()));
         }
         else

@@ -60,7 +60,7 @@ public abstract class BaseTest {
             if (driverTimeOut != null && !driverTimeOut.isEmpty()) {
                 actions.getWebAction().setTimeoutDefault(Integer.parseInt(driverTimeOut));
             }
-            if (actions.getWebAction().getBrowser() == null) {
+            if (!actions.getWebAction().isBrowserStarted()) {
                 actions.getWebAction().startBrowser();
             }
         }
@@ -151,7 +151,7 @@ public abstract class BaseTest {
         testDataManager.clearTestSuiteMap();
         testVars.clear();
         executor.clear();
-        if (actions.getWebAction() != null && actions.getWebAction().getBrowser() != null) {
+        if (actions.getWebAction() != null && actions.getWebAction().isBrowserStarted()) {
             actions.getWebAction().stopAllBrowsers();
         }
     }
